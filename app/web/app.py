@@ -89,13 +89,13 @@ def create_web_app(settings: Settings, database: Database, bot) -> web.Applicati
                     payment.out_sum = Decimal(params.get("OutSum", "0"))
                 except (InvalidOperation, TypeError):
                     pass
-            meta = payment.metadata or {}
+            meta = payment.data or {}
             robokassa_meta = meta.get("robokassa")
             if not isinstance(robokassa_meta, dict):
                 robokassa_meta = {}
             robokassa_meta.update(params)
             meta["robokassa"] = robokassa_meta
-            payment.metadata = meta
+            payment.data = meta
             if not payment.release or not payment.release.consent:
                 await session.flush()
                 await session.commit()

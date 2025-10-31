@@ -1,63 +1,45 @@
 from __future__ import annotations
-
-import asyncio
+import os
 from logging.config import fileConfig
-
-from sqlalchemy import pool
-from sqlalchemy.ext.asyncio import async_engine_from_config
-
 from alembic import context
-
-from app.config import load_settings
+from sqlalchemy import create_engine, pool
 from app.database.base import Base
-from app.database import models as models_module
-
-assert models_module
-
 
 config = context.config
-
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-settings = load_settings()
-config.set_main_option("sqlalchemy.url", settings.db_url)
-
 target_metadata = Base.metadata
 
+def _db_url() -> str:
+    v = os.getenv("DATABASE_URL")
+    if v:
+        return v
+    v = config.get_main_option("sqlalchemy.url")
+    if v:
+        return v
+    return "sqlite+aiosqlite:///./data/buh.db"
+
+def _sync_url(url: str) -> str:
+    if url.startswith("sqlite+aiosqlite"):
+        return url.replace("sqlite+aiosqlite", "sqlite")
+    if url.startswith("postgresql+asyncpg"):
+        return url.replace("postgresql+asyncpg", "postgresql")
+    return url
 
 def run_migrations_offline() -> None:
-    url = config.get_main_option("sqlalchemy.url")
-    context.configure(
-        url=url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-    )
-
+    url = _db_url()
+    context.configure(url=url, target_metadata=target_metadata, literal_binds=True, compare_type=True, dialect_opts={"paramstyle": "named"})
     with context.begin_transaction():
         context.run_migrations()
 
-
 def run_migrations_online() -> None:
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-        future=True,
-    )
-
-    async def do_run_migrations() -> None:
-        async with connectable.connect() as connection:
-            await connection.run_sync(do_migrations)
-
-    def do_migrations(connection):
+    url = _db_url()
+    engine = create_engine(_sync_url(url), poolclass=pool.NullPool)
+    with engine.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
         with context.begin_transaction():
             context.run_migrations()
-
-    asyncio.run(do_run_migrations())
-
 
 if context.is_offline_mode():
     run_migrations_offline()
