@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <title>Договор оказания услуг</title>
+    <style>
+        body { font-family: DejaVu Sans, sans-serif; font-size: 12pt; line-height: 1.4; }
+        h1 { text-align: center; font-size: 16pt; }
+        .meta { margin-top: 20px; }
+        .section { margin-top: 18px; }
+    </style>
+</head>
+<body>
+    <h1>Договор оказания услуг</h1>
+    <div class="meta">
+        <p><strong>Заказчик:</strong> {{ consent.full_name }} (email: {{ consent.email }})</p>
+        <p><strong>Исполнитель:</strong> ООО «PLOV RECORDS»</p>
+        <p><strong>Трек:</strong> {{ release.track_name }}</p>
+        <p><strong>Дата релиза:</strong> {{ release.release_date or "уточняется" }}</p>
+        <p><strong>Сумма оплаты:</strong> {{ payment.amount }} {{ payment.currency }}</p>
+        <p><strong>Дата оплаты:</strong> {{ payment.confirmed_at or payment.created_at }}</p>
+    </div>
+    <div class="section">
+        <p>Настоящий договор подтверждает намерение сторон осуществить выпуск музыкального релиза и размещение трека на цифровых площадках. Исполнитель обязуется выполнить услуги после подтверждения оплаты. Заказчик предоставляет необходимые материалы и гарантирует наличие прав на них.</p>
+        <p>Договор считается заключённым после подписания заказчиком и действует до полного выполнения обязательств.</p>
+    </div>
+</body>
+</html>
