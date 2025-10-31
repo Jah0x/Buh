@@ -1,0 +1,18 @@
+name: guard-large-files
+on: [pull_request]
+jobs:
+  size-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Fail on large files (>1MB)
+        run: |
+          git diff --name-only origin/${{ github.base_ref }}... | while read f; do
+            [ -f "$f" ] || continue
+            s=$(wc -c <"$f")
+            if [ $s -gt 1048576 ]; then
+              echo "::error file=$f::file exceeds 1 MB ($s bytes)"
+              exit 1
+            fi
+          done

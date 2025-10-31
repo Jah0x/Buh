@@ -1,13 +1,22 @@
-__pycache__/
-*.pyc
-*.pyo
-*.log
-.env
-.env.*
+# env
 .venv/
 venv/
-/data/
-/data/*
-!.env.example
+
+# runtime data
+data/
+logs/
+contracts/
+
+# binaries & local artifacts
+*.db
+*.sqlite
+*.log
+*.pdf
+*.zip
+*.tar
+*.tar.gz
+*.tmp
+
+# IDE
 .idea/
 .vscode/
