@@ -21,7 +21,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Минимальный набор для запуска: `BOT_TOKEN`, `ADMIN_USERNAME`, `DB_URL`, `PUBLIC_BASE_URL`, `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET`, `LOG_LEVEL`.
+Минимальный набор для запуска: `BOT_TOKEN`, `ADMIN_USERNAME`, `DB_URL`, `PUBLIC_BASE_URL`, `ROBOKASSA_MERCHANT_LOGIN`, `ROBOKASSA_PASSWORD1`, `ROBOKASSA_PASSWORD2`, `LOG_LEVEL`.
 
 ## Инициализация базы данных
 
