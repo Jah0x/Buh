@@ -1,4 +1,3 @@
-"""Reply keyboards used by the bot."""
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 

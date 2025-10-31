@@ -10,7 +10,9 @@ from alembic import context
 
 from app.config import load_settings
 from app.database.base import Base
-from app.database import models  # noqa: F401
+from app.database import models as models_module
+
+assert models_module
 
 
 config = context.config

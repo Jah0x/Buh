@@ -1,4 +1,3 @@
-"""Handlers for main menu interactions."""
 from __future__ import annotations
 
 from aiogram import Router
@@ -54,4 +53,3 @@ async def show_docs(message: Message) -> None:
 async def show_contacts(message: Message, settings: Settings) -> None:
     admin_username = settings.admin_username if settings and settings.admin_username else "admin"
     await message.answer(f"Связь с администратором: @{admin_username}", reply_markup=main_menu())
-

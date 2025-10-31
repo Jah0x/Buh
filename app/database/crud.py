@@ -1,4 +1,3 @@
-"""CRUD helpers for database interactions."""
 from __future__ import annotations
 
 from datetime import datetime

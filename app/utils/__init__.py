@@ -1,4 +1,3 @@
-"""Utility helpers."""
 
 from .files import ensure_parent, read_text
 

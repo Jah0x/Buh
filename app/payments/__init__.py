@@ -1,4 +1,3 @@
-"""Payment helpers."""
 
 from .yookassa import YooKassaClient, parse_webhook_event
 

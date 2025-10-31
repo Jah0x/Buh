@@ -1,4 +1,3 @@
-"""Bot setup and dispatcher wiring."""
 from __future__ import annotations
 
 from aiogram import Bot, Dispatcher

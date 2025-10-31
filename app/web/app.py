@@ -1,4 +1,3 @@
-"""aiohttp application for webhooks and health checks."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -61,7 +60,7 @@ def create_web_app(settings: Settings, database: Database, bot) -> web.Applicati
                         document=document,
                         caption="Ваш договор сформирован. Пожалуйста, подпишите и верните.",
                     )
-                except Exception as exc:  # pragma: no cover - network operations
+                except Exception as exc:                                         
                     logger.error("Failed to send contract PDF: %s", exc)
         return web.json_response({"ok": True})
 

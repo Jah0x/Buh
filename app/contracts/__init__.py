@@ -1,4 +1,3 @@
-"""Contracts package."""
 
 from .service import ContractContext, ContractService
 

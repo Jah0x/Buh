@@ -1,4 +1,3 @@
-"""PLOV BOT application package."""
 
 from .config import Settings, load_settings
 from .main import run

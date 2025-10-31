@@ -1,4 +1,3 @@
-"""Finite state machines for user flows."""
 from aiogram.fsm.state import State, StatesGroup
 
 
