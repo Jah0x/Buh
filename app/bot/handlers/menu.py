@@ -5,9 +5,9 @@ from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
-from ...config import Settings
-from ..keyboards.main import back_keyboard, main_menu
-from ..states import ReleaseStates
+from app.config import Settings
+from app.bot.keyboards.main import back_keyboard, main_menu
+from app.bot.states import ReleaseStates
 
 router = Router()
 

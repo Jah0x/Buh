@@ -5,8 +5,8 @@ from typing import AsyncIterator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from ..config import Settings
-from .base import Base
+from app.config import Settings
+from app.database.base import Base
 
 
 class Database:

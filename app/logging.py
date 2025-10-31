@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import logging
 from logging.config import dictConfig
+from pathlib import Path
+
+LOG_DIR = Path("logs")
+LOG_FILE = LOG_DIR / "bot.log"
 
 
 def configure_logging(level: str = "INFO") -> None:
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
 
     dictConfig(
         {
@@ -19,10 +24,20 @@ def configure_logging(level: str = "INFO") -> None:
                 "console": {
                     "class": "logging.StreamHandler",
                     "formatter": "default",
-                }
+                    "level": level.upper(),
+                },
+                "file": {
+                    "class": "logging.handlers.RotatingFileHandler",
+                    "formatter": "default",
+                    "filename": str(LOG_FILE),
+                    "maxBytes": 5 * 1024 * 1024,
+                    "backupCount": 5,
+                    "encoding": "utf-8",
+                    "level": level.upper(),
+                },
             },
             "root": {
-                "handlers": ["console"],
+                "handlers": ["console", "file"],
                 "level": level.upper(),
             },
         }

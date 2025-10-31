@@ -4,7 +4,7 @@ from typing import Any, Awaitable, Callable, Dict
 
 from aiogram import BaseMiddleware
 
-from ...config import Settings
+from app.config import Settings
 
 
 class SettingsMiddleware(BaseMiddleware):

@@ -15,15 +15,10 @@ class Settings:
     admin_username: str
     base_dir: Path
     db_url: str
-    yookassa_shop_id: Optional[str]
-    yookassa_secret: Optional[str]
     public_base_url: Optional[str]
-    log_level: str = "INFO"
+    environment: str = "dev"
     consent_version: str = "v1"
     consent_text_path: Path = Path("app/resources/privacy_consent_v1.txt")
-    contract_template: Path = Path("app/contracts/templates/contract.html")
-    web_host: str = "0.0.0.0"
-    web_port: int = 8080
 
     @property
     def data_dir(self) -> Path:
@@ -38,26 +33,19 @@ class Settings:
         return self.base_dir / "covers"
 
     @property
-    def contracts_dir(self) -> Path:
-        return self.base_dir / "contracts"
-
-    @property
-    def consent_storage_path(self) -> Path:
-        return self.base_dir / "consents"
+    def log_level(self) -> str:
+        return "INFO" if self.environment.lower() == "prod" else "DEBUG"
 
     @classmethod
     def from_env(cls) -> "Settings":
         load_dotenv()
         base_dir = Path(os.getenv("BASE_DIR", "./data")).resolve()
         base_dir.mkdir(parents=True, exist_ok=True)
-        for sub in ("tracks", "covers", "contracts", "consents"):
+        for sub in ("tracks", "covers"):
             (base_dir / sub).mkdir(parents=True, exist_ok=True)
 
         consent_text_path = Path(
             os.getenv("CONSENT_TEXT_PATH", "app/resources/privacy_consent_v1.txt")
-        ).resolve()
-        contract_template = Path(
-            os.getenv("CONTRACT_TEMPLATE", "app/contracts/templates/contract.html")
         ).resolve()
 
         return cls(
@@ -65,15 +53,10 @@ class Settings:
             admin_username=os.getenv("ADMIN_USERNAME", ""),
             base_dir=base_dir,
             db_url=os.getenv("DB_URL", "sqlite+aiosqlite:///./data/app.db"),
-            yookassa_shop_id=os.getenv("YOOKASSA_SHOP_ID"),
-            yookassa_secret=os.getenv("YOOKASSA_SECRET"),
             public_base_url=os.getenv("PUBLIC_BASE_URL"),
-            log_level=os.getenv("LOG_LEVEL", "INFO"),
+            environment=os.getenv("APP_ENV", "dev"),
             consent_version=os.getenv("CONSENT_VERSION", "v1"),
             consent_text_path=consent_text_path,
-            contract_template=contract_template,
-            web_host=os.getenv("WEB_HOST", "0.0.0.0"),
-            web_port=int(os.getenv("WEB_PORT", "8080")),
         )
 
 
