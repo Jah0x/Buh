@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
@@ -22,7 +23,10 @@ def create_dispatcher(settings: Settings, database: Database) -> Dispatcher:
 
 
 def create_bot(settings: Settings) -> Bot:
-    bot = Bot(token=settings.bot_token, parse_mode=ParseMode.HTML)
+    bot = Bot(
+        token=settings.bot_token,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
     bot["settings"] = settings
     return bot
 
