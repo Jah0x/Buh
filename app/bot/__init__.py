@@ -4,11 +4,11 @@ from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from ..config import Settings
-from ..database.session import Database
-from .handlers import menu, release
-from .middlewares.db import DatabaseSessionMiddleware
-from .middlewares.settings import SettingsMiddleware
+from app.config import Settings
+from app.database.session import Database
+from app.bot.handlers import menu, release
+from app.bot.middlewares.db import DatabaseSessionMiddleware
+from app.bot.middlewares.settings import SettingsMiddleware
 
 
 def create_dispatcher(settings: Settings, database: Database) -> Dispatcher:
