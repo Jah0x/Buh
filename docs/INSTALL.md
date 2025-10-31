@@ -23,6 +23,8 @@ cp .env.example .env
 
 Минимальный набор для запуска: `BOT_TOKEN`, `ADMIN_USERNAME`, `DB_URL`, `PUBLIC_BASE_URL`, `ROBOKASSA_MERCHANT_LOGIN`, `ROBOKASSA_PASSWORD1`, `ROBOKASSA_PASSWORD2`, `LOG_LEVEL`.
 
+При первом запуске приложение автоматически установит SQLAlchemy, если библиотека отсутствует в текущем окружении, но рекомендуется заранее выполнить установку зависимостей командой `pip install -r requirements.txt`.
+
 ## Инициализация базы данных
 
 В активированном виртуальном окружении выполните миграции:
