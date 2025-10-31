@@ -1,4 +1,3 @@
-"""Keyboard shortcuts."""
 
 from .main import back_keyboard, consent_keyboard, main_menu
 

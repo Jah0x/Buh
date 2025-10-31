@@ -1,62 +1,27 @@
-# База данных
+# Схема базы данных
 
 ## Технологии
 
-- SQLAlchemy 2.0 (async engine)
-- Alembic для миграций
-- SQLite для разработки, PostgreSQL в продакшене
+- SQLAlchemy 2.0 (асинхронный движок + типизированные модели).
+- Alembic для миграций и версионирования схемы.
+- SQLite в разработке, PostgreSQL в продакшене.
 
-## Модели
+## Основные сущности
 
-### users
-- `id` — PK
-- `telegram_id` — уникальный идентификатор пользователя Telegram
-- `username`, `first_name`, `last_name`
-- `created_at`
+- **users** — Telegram-пользователи бота. Хранятся идентификаторы (`telegram_id`), базовый профиль и дата регистрации.
+- **releases** — карточки релизов с метаданными (название трека, авторы, описания, пути к файлам). Связаны с `users`.
+- **consents** — зафиксированные согласия на обработку данных. Содержат ссылку на пользователя/релиз, версию текста и момент принятия.
+- **contracts** — информация о сформированных договорах: статусы, пути к PDF, временные метки отправки/подписания.
+- **payments** — хранят статусы транзакций и связь с релизом. Детали взаимодействия описываются отдельно (см. документацию по платежам после интеграции).
 
-### releases
-- `id`
-- `user_id` — FK → users
-- `track_name`, `artist`, `authors`, `description`
-- `release_date`
-- `track_file`, `cover_file`
-- `status` (pending/processing/ready)
-- `created_at`
+## Связи и ограничения
 
-### consents
-- `id`
-- `user_id` — FK → users
-- `release_id` — FK → releases
-- `full_name`, `email`
-- `text_version`, `text_body`
-- `accepted_at`
+- Один пользователь может иметь несколько релизов (`users` 1→N `releases`).
+- Для каждого релиза фиксируется одно активное согласие и один договор, но таблицы допускают историю (статусные поля и временные метки).
+- Внешние ключи обеспечивают каскадное удаление вспомогательных записей при удалении релиза.
 
-### payments
-- `id`
-- `user_id` — FK → users
-- `release_id` — FK → releases
-- `provider` (yookassa)
-- `provider_payment_id`
-- `status`
-- `amount`, `currency`
-- `metadata`
-- `created_at`, `confirmed_at`
+## Работа с миграциями
 
-### contracts
-- `id`
-- `user_id` — FK → users
-- `release_id` — FK → releases
-- `status` (drafted/sent/signed)
-- `pdf_path`
-- `sent_at`, `signed_at`
-- `created_at`, `updated_at`
-
-## Миграции
-
-- Базовая ревизия: `202401010001_initial_schema.py`
-- Новые ревизии создаются через `alembic revision --autogenerate`.
-
-## Работа с сессиями
-
-- Используйте `Database.session()` или middleware для получения `AsyncSession`.
-- При ошибках происходит rollback, при успехе — commit.
+- Базовая структура создаётся командой `alembic upgrade head`.
+- Новые изменения оформляйте через `alembic revision --autogenerate -m "description"` с последующим ручным ревью.
+- В production миграции запускаются перед развёртыванием новой версии приложения.

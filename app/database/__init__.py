@@ -1,4 +1,3 @@
-"""Database package exports."""
 
 from .base import Base
 from . import models

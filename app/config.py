@@ -1,4 +1,3 @@
-"""Application configuration loading."""
 from __future__ import annotations
 
 import os
@@ -11,7 +10,6 @@ from dotenv import load_dotenv
 
 @dataclass(slots=True)
 class Settings:
-    """Runtime settings loaded from environment variables."""
 
     bot_token: str
     admin_username: str
@@ -87,6 +85,5 @@ def _require_env(name: str) -> str:
 
 
 def load_settings() -> Settings:
-    """Load settings singleton."""
 
     return Settings.from_env()

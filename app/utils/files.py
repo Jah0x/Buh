@@ -1,4 +1,3 @@
-"""File related helper utilities."""
 from __future__ import annotations
 
 from pathlib import Path

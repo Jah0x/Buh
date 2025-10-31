@@ -1,4 +1,3 @@
-"""Database engine and session utilities."""
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
@@ -11,7 +10,6 @@ from .base import Base
 
 
 class Database:
-    """Database wrapper managing the async engine and sessions."""
 
     def __init__(self, settings: Settings):
         self._settings = settings

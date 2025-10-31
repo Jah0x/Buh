@@ -1,4 +1,3 @@
-"""Initial database schema"""
 from __future__ import annotations
 
 from alembic import op

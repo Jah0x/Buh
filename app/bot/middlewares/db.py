@@ -1,4 +1,3 @@
-"""Middleware providing database session to handlers."""
 from __future__ import annotations
 
 from typing import Any, Awaitable, Callable, Dict
@@ -13,7 +12,7 @@ class DatabaseSessionMiddleware(BaseMiddleware):
         self._session_factory = session_factory
 
     async def __call__(self, handler: Callable[[Any, Dict[str, Any]], Awaitable[Any]], event: Any, data: Dict[str, Any]) -> Any:
-        async with self._session_factory() as session:  # type: AsyncSession
+        async with self._session_factory() as session:                      
             data["session"] = session
             try:
                 result = await handler(event, data)

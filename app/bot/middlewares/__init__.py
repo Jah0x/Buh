@@ -1,4 +1,3 @@
-"""Bot middlewares."""
 
 from .db import DatabaseSessionMiddleware
 from .settings import SettingsMiddleware

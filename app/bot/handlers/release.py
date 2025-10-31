@@ -1,4 +1,3 @@
-"""Release assembly FSM handlers."""
 from __future__ import annotations
 
 import re
@@ -287,5 +286,5 @@ async def notify_admin(message: Message, settings: Settings, release, consent, p
     )
     try:
         await message.bot.send_message(f"@{settings.admin_username}", summary)
-    except Exception as exc:  # pragma: no cover - network operations
+    except Exception as exc:                                         
         logger.error("Failed to notify admin: %s", exc)

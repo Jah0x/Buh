@@ -1,4 +1,3 @@
-"""Bot handlers package."""
 
 from . import menu, release
 

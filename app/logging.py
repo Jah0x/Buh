@@ -1,4 +1,3 @@
-"""Logging configuration utilities."""
 from __future__ import annotations
 
 import logging
@@ -6,7 +5,6 @@ from logging.config import dictConfig
 
 
 def configure_logging(level: str = "INFO") -> None:
-    """Setup structured logging for the bot."""
 
     dictConfig(
         {
