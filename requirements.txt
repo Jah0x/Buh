@@ -9,3 +9,4 @@ python-dotenv>=1.0
 SQLAlchemy>=2.0
 yookassa>=3.0
 weasyprint>=62
+reportlab>=4

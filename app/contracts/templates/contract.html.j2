@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <title>Договор оказания услуг</title>
+    <style>
+        body { font-family: DejaVu Sans, sans-serif; font-size: 12pt; line-height: 1.45; margin: 36px; }
+        h1 { text-align: center; font-size: 16pt; margin-bottom: 24px; }
+        .section { margin-top: 18px; }
+        .meta { margin-bottom: 18px; }
+    </style>
+</head>
+<body>
+    <h1>Договор оказания услуг</h1>
+    <div class="meta">
+        <p><strong>Дата формирования:</strong> {{ generated_at.strftime('%d.%m.%Y %H:%M') }} UTC</p>
+        <p><strong>Заказчик:</strong> {{ consent.full_name }} ({{ consent.email }})</p>
+        <p><strong>Релиз:</strong> {{ release.track_name }} исполнителя {{ release.artist or 'не указан' }}</p>
+        <p><strong>Дата релиза:</strong> {{ release.release_date or 'уточняется' }}</p>
+        <p><strong>Сумма оплаты:</strong> {{ '%.2f'|format(payment.out_sum) }} {{ payment.currency }}</p>
+        <p><strong>Номер платежа:</strong> {{ payment.robokassa_inv_id }}</p>
+    </div>
+    <div class="section">
+        <p>Исполнитель обязуется разместить музыкальный материал Заказчика на цифровых площадках и выполнить иные действия, связанные с выпуском релиза, в соответствии с правилами сервиса. Заказчик подтверждает, что обладает необходимыми правами на предоставленные материалы и несёт ответственность за их содержание.</p>
+        <p>Оплата считается поступившей после получения подтверждения от платёжного провайдера. Настоящий договор вступает в силу с момента его подписания Заказчиком посредством перехода по ссылке подтверждения.</p>
+        <p>Стороны признают юридическую силу электронного обмена документами и соглашаются использовать адрес электронной почты, указанный Заказчиком, для направления уведомлений и копий договора.</p>
+    </div>
+</body>
+</html>
