@@ -111,7 +111,7 @@ class Payment(Base):
     signature_algo: Mapped[str] = mapped_column(String(16))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    metadata: Mapped[Optional[Dict[str, object]]] = mapped_column(JSON, nullable=True)
+    data: Mapped[dict | None] = mapped_column("meta" "data", JSON, nullable=True)
     is_test: Mapped[bool] = mapped_column(Boolean, default=False)
 
     release: Mapped[Release] = relationship(back_populates="payments")
