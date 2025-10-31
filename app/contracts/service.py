@@ -6,9 +6,9 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from weasyprint import HTML
 
-from ..config import Settings
-from ..database import models
-from ..utils.files import ensure_parent
+from app.config import Settings
+from app.database import models
+from app.utils.files import ensure_parent
 
 
 def _build_environment(template_path: Path) -> Environment:

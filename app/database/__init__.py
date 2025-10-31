@@ -1,6 +1,6 @@
 
-from .base import Base
-from . import models
-from .session import Database
+from app.database.base import Base
+from app.database import models
+from app.database.session import Database
 
 __all__ = ["Base", "models", "Database"]

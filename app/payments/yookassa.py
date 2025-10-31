@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 from yookassa import Configuration, Payment
 from yookassa.domain.notification import WebhookNotification
 
-from ..config import Settings
+from app.config import Settings
 
 logger = logging.getLogger(__name__)
 

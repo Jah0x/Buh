@@ -8,7 +8,7 @@ from app.database.session import Database
 from app.logging import configure_logging, logger
 
 
-async def _run() -> None:
+async def _main() -> None:
     settings = load_settings()
     configure_logging(settings.log_level)
 
@@ -25,9 +25,9 @@ async def _run() -> None:
         await bot.session.close()
 
 
-def run() -> None:
-    asyncio.run(_run())
+def main() -> None:
+    asyncio.run(_main())
 
 
 if __name__ == "__main__":
-    run()
+    main()
