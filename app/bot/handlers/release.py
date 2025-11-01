@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from dataclasses import dataclass
 from pathlib import Path
 
 from aiogram import F, Router
@@ -13,20 +13,60 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings
 from app.database import crud
 from app.logging import logger
-from app.utils.files import ensure_parent, read_text, sanitize_filename
-from app.bot.keyboards.main import back_keyboard, consent_keyboard, main_menu
+from app.utils.files import ensure_parent, sanitize_filename
+from app.bot.keyboards.main import BACK_BUTTON, back_keyboard, main_menu, release_services_keyboard
 from app.bot.states import ReleaseStates
 
 router = Router()
 
-BACK = "⬅️ Назад"
-CONSENT_ACCEPT = "✅ Принимаю"
-CONSENT_DECLINE = "❌ Не согласен"
-
-ALLOWED_TRACK_EXT = {".wav", ".flac"}
+MAX_TRACK_SIZE = 100 * 1024 * 1024
+ALLOWED_TRACK_EXT = {".wav", ".mp3"}
 ALLOWED_COVER_EXT = {".jpg", ".jpeg", ".png"}
-ALLOWED_COVER_SIZES = {1500, 3000, 6000}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+@dataclass(frozen=True)
+class ReleaseService:
+    title: str
+    price: str
+    note: str
+
+
+RELEASE_SERVICES = (
+    ReleaseService("1 релиз", "555 ₽", "без питчинга"),
+    ReleaseService("1 релиз + питчинг", "1111 ₽", "включает продвижение"),
+    ReleaseService("ЕР + питчинг", "3333 ₽", "мини-альбом"),
+    ReleaseService("Альбом (питчинг в подарок)", "5555 ₽", "полный релиз"),
+    ReleaseService("Годовая подписка", "11111 ₽", "безлимитное количество релизов"),
+    ReleaseService("Питчинг отдельно", "555 ₽", "по запросу"),
+    ReleaseService("Отправка инвестору", "1111 ₽", "вручную или автоматически"),
+    ReleaseService("Отправка на радио", "2222 ₽", "по списку радиостанций"),
+    ReleaseService("Консультация с главой лейбла", "11111 ₽", "1 час онлайн"),
+)
+
+SERVICE_BY_TITLE = {item.title: item for item in RELEASE_SERVICES}
+SERVICE_TITLES = [item.title for item in RELEASE_SERVICES]
+
+
+def release_services_text() -> str:
+    lines = ["Выбери услугу:"]
+    for item in RELEASE_SERVICES:
+        line = f"{item.title} — {item.price}"
+        if item.note:
+            line += f" ({item.note})"
+        lines.append(line)
+    lines.append("")
+    lines.append("После загрузки материалов сформируем заявку, сохраним её в базе и подготовим черновик договора.")
+    return "\n".join(lines)
+
+
+def release_services_markup():
+    return release_services_keyboard(SERVICE_TITLES)
+
+
+async def prompt_release_services(message: Message, state: FSMContext) -> None:
+    await state.set_state(ReleaseStates.service)
+    await message.answer(release_services_text(), reply_markup=release_services_markup())
 
 
 async def _download_file(message: Message, file_id: str, destination: Path) -> None:
@@ -37,46 +77,70 @@ async def _download_file(message: Message, file_id: str, destination: Path) -> N
 
 def _validate_cover(path: Path) -> None:
     with Image.open(path) as img:
-        width, height = img.size
-        if width != height or width not in ALLOWED_COVER_SIZES:
-            raise ValueError(f"Unsupported cover size: {width}x{height}")
+        img.verify()
 
 
-async def _show_consent(message: Message, state: FSMContext, settings: Settings) -> None:
-    consent_text = read_text(settings.consent_text_path)
-    await state.update_data(consent_text=consent_text)
-    await state.set_state(ReleaseStates.consent)
+def _service_from_state(data: dict) -> ReleaseService:
+    title = data.get("service")
+    return SERVICE_BY_TITLE.get(title, RELEASE_SERVICES[0])
+
+
+def _build_description(data: dict) -> str:
+    service = _service_from_state(data)
+    first_line = f"Услуга: {service.title} — {service.price}"
+    if service.note:
+        first_line += f" ({service.note})"
+    parts = [
+        first_line,
+        f"Жанр: {data.get('genre', '')}",
+        f"Соцсети: {data.get('socials', '')}",
+        f"Контактный email: {data.get('contact_email', '')}",
+    ]
+    original_track = data.get("track_original_name")
+    if original_track:
+        parts.append(f"Исходное имя файла: {original_track}")
+    return "\n".join(parts)
+
+
+@router.message(ReleaseStates.service, F.text == BACK_BUTTON)
+async def release_back_to_menu(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    await message.answer("Главное меню:", reply_markup=main_menu())
+
+
+@router.message(ReleaseStates.service)
+async def select_release_service(message: Message, state: FSMContext) -> None:
+    service = SERVICE_BY_TITLE.get(message.text or "")
+    if not service:
+        await message.answer("Выбери услугу из списка ниже.", reply_markup=release_services_markup())
+        return
+    await state.update_data(service=service.title)
+    await state.set_state(ReleaseStates.track_upload)
     await message.answer(
-        f"{consent_text}\n\nЕсли согласен, нажми \"{CONSENT_ACCEPT}\".",
-        reply_markup=consent_keyboard(),
+        "Загрузи трек файлом WAV или MP3 (до 100 МБ).",
+        reply_markup=back_keyboard(),
     )
 
 
-@router.message(ReleaseStates.track_upload, F.text == BACK)
-@router.message(ReleaseStates.cover_upload, F.text == BACK)
-@router.message(ReleaseStates.track_name, F.text == BACK)
-@router.message(ReleaseStates.artist, F.text == BACK)
-@router.message(ReleaseStates.authors, F.text == BACK)
-@router.message(ReleaseStates.description, F.text == BACK)
-@router.message(ReleaseStates.release_date, F.text == BACK)
-@router.message(ReleaseStates.full_name, F.text == BACK)
-@router.message(ReleaseStates.email, F.text == BACK)
-@router.message(ReleaseStates.consent, F.text == BACK)
-async def cancel_flow(message: Message, state: FSMContext) -> None:
-    await state.clear()
-    await message.answer("Процесс сбора релиза отменён.", reply_markup=main_menu())
+@router.message(ReleaseStates.track_upload, F.text == BACK_BUTTON)
+async def release_track_back(message: Message, state: FSMContext) -> None:
+    await prompt_release_services(message, state)
 
 
 @router.message(ReleaseStates.track_upload, F.document | F.audio)
 async def handle_track_upload(message: Message, state: FSMContext, settings: Settings) -> None:
     file = message.document or message.audio
     if not file:
-        await message.answer("Отправь трек как файл WAV/FLAC.", reply_markup=back_keyboard())
+        await message.answer("Отправь трек как файл WAV или MP3.", reply_markup=back_keyboard())
         return
-    filename = (file.file_name or "track.wav").lower()
-    ext = Path(filename).suffix
+    filename = (file.file_name or "track").lower()
+    ext = Path(filename).suffix.lower()
     if ext not in ALLOWED_TRACK_EXT:
-        await message.answer("Файл должен быть в формате WAV или FLAC.", reply_markup=back_keyboard())
+        await message.answer("Допустимы только WAV или MP3.", reply_markup=back_keyboard())
+        return
+    size = getattr(file, "file_size", None) or 0
+    if size > MAX_TRACK_SIZE:
+        await message.answer("Файл должен быть не более 100 МБ.", reply_markup=back_keyboard())
         return
     sanitized_name = sanitize_filename(filename)
     destination = settings.tracks_dir / sanitized_name
@@ -88,173 +152,144 @@ async def handle_track_upload(message: Message, state: FSMContext, settings: Set
         return
     await state.update_data(track_file=str(destination), track_original_name=filename)
     await state.set_state(ReleaseStates.cover_upload)
-    await message.answer(
-        "Теперь пришли обложку JPG/PNG 1500x1500, 3000x3000 или 6000x6000.",
-        reply_markup=back_keyboard(),
-    )
+    await message.answer("Теперь пришли обложку JPG или PNG.", reply_markup=back_keyboard())
 
 
 @router.message(ReleaseStates.track_upload)
-async def handle_track_upload_invalid(message: Message) -> None:
-    await message.answer("Пришли трек в формате WAV/FLAC как файл (document).", reply_markup=back_keyboard())
+async def handle_track_invalid(message: Message) -> None:
+    await message.answer("Отправь трек файлом WAV или MP3.", reply_markup=back_keyboard())
+
+
+@router.message(ReleaseStates.cover_upload, F.text == BACK_BUTTON)
+async def release_cover_back(message: Message, state: FSMContext) -> None:
+    await state.set_state(ReleaseStates.track_upload)
+    await message.answer("Снова отправь трек WAV или MP3.", reply_markup=back_keyboard())
 
 
 @router.message(ReleaseStates.cover_upload, F.photo | F.document)
-async def handle_cover_upload(
-    message: Message,
-    state: FSMContext,
-    settings: Settings,
-    session: AsyncSession,
-) -> None:
+async def handle_cover_upload(message: Message, state: FSMContext, settings: Settings) -> None:
     if message.photo:
-        photo_size = message.photo[-1]
-        filename = f"cover_{message.from_user.id}_{photo_size.file_unique_id}.jpg"
-        sanitized_name = sanitize_filename(filename)
-        destination = settings.covers_dir / sanitized_name
-        file_id = photo_size.file_id
+        photo = message.photo[-1]
+        filename = f"cover_{message.from_user.id}_{photo.file_unique_id}.jpg"
+        destination = settings.covers_dir / sanitize_filename(filename)
+        file_id = photo.file_id
     else:
         document = message.document
         if not document:
-            await message.answer("Отправь обложку картинкой или файлом JPG/PNG.")
+            await message.answer("Отправь обложку картинкой или файлом JPG/PNG.", reply_markup=back_keyboard())
             return
         filename = (document.file_name or f"cover_{document.file_unique_id}.jpg").lower()
         ext = Path(filename).suffix.lower()
         if ext not in ALLOWED_COVER_EXT:
-            await message.answer("Обложка должна быть JPG или PNG.", reply_markup=back_keyboard())
+            await message.answer("Допустимы только JPG или PNG.", reply_markup=back_keyboard())
             return
-        sanitized_name = sanitize_filename(filename)
-        destination = settings.covers_dir / sanitized_name
+        destination = settings.covers_dir / sanitize_filename(filename)
         file_id = document.file_id
     try:
         await _download_file(message, file_id, destination)
         _validate_cover(destination)
     except Exception as exc:
-        logger.error("Cover validation failed: %s", exc)
-        await message.answer("Не удалось обработать обложку. Проверь формат и размер.", reply_markup=back_keyboard())
+        logger.error("Cover processing failed: %s", exc)
+        await message.answer("Не удалось обработать обложку. Проверь файл и попробуй снова.", reply_markup=back_keyboard())
         return
     await state.update_data(cover_file=str(destination))
-
-    existing_consent = await crud.get_latest_consent_for_user(session, message.from_user.id)
-    if existing_consent:
-        await state.update_data(full_name=existing_consent.full_name, email=existing_consent.email)
-        await _show_consent(message, state, settings)
-        return
-
-    await state.set_state(ReleaseStates.full_name)
-    await message.answer("Укажи ФИО для договора.", reply_markup=back_keyboard())
+    await state.set_state(ReleaseStates.artist_name)
+    await message.answer("Укажи имя артиста.", reply_markup=back_keyboard())
 
 
 @router.message(ReleaseStates.cover_upload)
 async def handle_cover_invalid(message: Message) -> None:
-    await message.answer(
-        "Нужно отправить обложку JPG/PNG 1500/3000/6000.", reply_markup=back_keyboard()
-    )
+    await message.answer("Нужна обложка JPG или PNG.", reply_markup=back_keyboard())
 
 
-@router.message(ReleaseStates.full_name)
-async def handle_full_name(message: Message, state: FSMContext) -> None:
-    if not message.text:
-        await message.answer("Нужно указать ФИО.", reply_markup=back_keyboard())
-        return
-    await state.update_data(full_name=message.text.strip())
-    await state.set_state(ReleaseStates.email)
-    await message.answer("Укажи email для связи и отправки документов.", reply_markup=back_keyboard())
+@router.message(ReleaseStates.artist_name, F.text == BACK_BUTTON)
+async def release_artist_back(message: Message, state: FSMContext) -> None:
+    await state.set_state(ReleaseStates.cover_upload)
+    await message.answer("Вернёмся к обложке. Пришли файл ещё раз.", reply_markup=back_keyboard())
 
 
-@router.message(ReleaseStates.email)
-async def handle_email(message: Message, state: FSMContext, settings: Settings) -> None:
-    email = (message.text or "").strip()
-    if not EMAIL_RE.match(email):
-        await message.answer("Похоже на некорректный email. Попробуй снова.", reply_markup=back_keyboard())
-        return
-    await state.update_data(email=email)
-    await _show_consent(message, state, settings)
-
-
-@router.message(ReleaseStates.track_name)
-async def handle_track_name(message: Message, state: FSMContext) -> None:
-    if not message.text:
-        await message.answer("Нужно указать название трека текстом.", reply_markup=back_keyboard())
-        return
-    await state.update_data(track_name=message.text.strip())
-    await state.set_state(ReleaseStates.artist)
-    await message.answer("Укажи исполнителя (можно несколько).", reply_markup=back_keyboard())
-
-
-@router.message(ReleaseStates.artist)
+@router.message(ReleaseStates.artist_name)
 async def handle_artist(message: Message, state: FSMContext) -> None:
     if not message.text:
-        await message.answer("Нужно указать исполнителя текстом.", reply_markup=back_keyboard())
+        await message.answer("Нужно указать имя артиста текстом.", reply_markup=back_keyboard())
         return
-    await state.update_data(artist=message.text.strip())
-    await state.set_state(ReleaseStates.authors)
-    await message.answer("Укажи авторов и правообладателей.", reply_markup=back_keyboard())
+    await state.update_data(artist_name=message.text.strip())
+    await state.set_state(ReleaseStates.release_title)
+    await message.answer("Укажи название релиза.", reply_markup=back_keyboard())
 
 
-@router.message(ReleaseStates.authors)
-async def handle_authors(message: Message, state: FSMContext) -> None:
+@router.message(ReleaseStates.release_title, F.text == BACK_BUTTON)
+async def release_title_back(message: Message, state: FSMContext) -> None:
+    await state.set_state(ReleaseStates.artist_name)
+    await message.answer("Снова укажи имя артиста.", reply_markup=back_keyboard())
+
+
+@router.message(ReleaseStates.release_title)
+async def handle_release_title(message: Message, state: FSMContext) -> None:
     if not message.text:
-        await message.answer("Нужно указать авторов текстом.", reply_markup=back_keyboard())
+        await message.answer("Нужно указать название релиза.", reply_markup=back_keyboard())
         return
-    await state.update_data(authors=message.text.strip())
-    await state.set_state(ReleaseStates.description)
-    await message.answer("Добавь описание релиза (по желанию).", reply_markup=back_keyboard())
+    await state.update_data(release_title=message.text.strip())
+    await state.set_state(ReleaseStates.genre)
+    await message.answer("Какой жанр релиза?", reply_markup=back_keyboard())
 
 
-@router.message(ReleaseStates.description)
-async def handle_description(message: Message, state: FSMContext) -> None:
-    await state.update_data(description=(message.text or "").strip())
-    await state.set_state(ReleaseStates.release_date)
-    await message.answer("Планируемая дата релиза (формат YYYY-MM-DD или текст).", reply_markup=back_keyboard())
+@router.message(ReleaseStates.genre, F.text == BACK_BUTTON)
+async def release_genre_back(message: Message, state: FSMContext) -> None:
+    await state.set_state(ReleaseStates.release_title)
+    await message.answer("Укажи название релиза ещё раз.", reply_markup=back_keyboard())
 
 
-@router.message(ReleaseStates.release_date)
-async def handle_release_date(
-    message: Message,
-    state: FSMContext,
-    settings: Settings,
-    session: AsyncSession,
-) -> None:
-    await state.update_data(release_date=(message.text or "").strip())
+@router.message(ReleaseStates.genre)
+async def handle_genre(message: Message, state: FSMContext) -> None:
+    if not message.text:
+        await message.answer("Нужно указать жанр.", reply_markup=back_keyboard())
+        return
+    await state.update_data(genre=message.text.strip())
+    await state.set_state(ReleaseStates.socials)
+    await message.answer("Поделись ссылками на соцсети и площадки.", reply_markup=back_keyboard())
+
+
+@router.message(ReleaseStates.socials, F.text == BACK_BUTTON)
+async def release_socials_back(message: Message, state: FSMContext) -> None:
+    await state.set_state(ReleaseStates.genre)
+    await message.answer("Нужно указать жанр.", reply_markup=back_keyboard())
+
+
+@router.message(ReleaseStates.socials)
+async def handle_socials(message: Message, state: FSMContext) -> None:
+    if not message.text:
+        await message.answer("Добавь ссылки на соцсети.", reply_markup=back_keyboard())
+        return
+    await state.update_data(socials=message.text.strip())
+    await state.set_state(ReleaseStates.contact_email)
+    await message.answer("Укажи e-mail для договора.", reply_markup=back_keyboard())
+
+
+@router.message(ReleaseStates.contact_email, F.text == BACK_BUTTON)
+async def release_email_back(message: Message, state: FSMContext) -> None:
+    await state.set_state(ReleaseStates.socials)
+    await message.answer("Добавь ссылки на соцсети.", reply_markup=back_keyboard())
+
+
+@router.message(ReleaseStates.contact_email)
+async def handle_contact_email(message: Message, state: FSMContext, settings: Settings, session: AsyncSession) -> None:
+    email = (message.text or "").strip()
+    if not EMAIL_RE.match(email):
+        await message.answer("Похоже на неверный e-mail. Попробуй снова.", reply_markup=back_keyboard())
+        return
+    await state.update_data(contact_email=email)
     await finalize_release(message, state, settings, session)
 
 
-@router.message(ReleaseStates.consent, F.text == CONSENT_DECLINE)
-async def handle_consent_decline(message: Message, state: FSMContext) -> None:
-    await state.clear()
-    await message.answer("Без согласия мы не можем продолжить. Напиши, когда будешь готов.", reply_markup=main_menu())
-
-
-@router.message(ReleaseStates.consent, F.text == CONSENT_ACCEPT)
-async def handle_consent_accept(message: Message, state: FSMContext) -> None:
-    await state.update_data(consent_accepted_at=datetime.now(timezone.utc).isoformat())
-    await state.set_state(ReleaseStates.track_name)
-    await message.answer("Спасибо! Теперь расскажи о релизе. Как называется трек?", reply_markup=back_keyboard())
-
-
-@router.message(ReleaseStates.consent)
-async def handle_consent_unknown(message: Message) -> None:
-    await message.answer("Подтверди согласие кнопкой или нажми назад.", reply_markup=consent_keyboard())
-    
-
-async def finalize_release(
-    message: Message,
-    state: FSMContext,
-    settings: Settings,
-    session: AsyncSession,
-) -> None:
+async def finalize_release(message: Message, state: FSMContext, settings: Settings, session: AsyncSession) -> None:
     data = await state.get_data()
-    if not data.get("consent_accepted_at"):
-        await message.answer("Сначала подтвердите согласие.", reply_markup=consent_keyboard())
+    track_path = data.get("track_file")
+    cover_path = data.get("cover_file")
+    if not track_path or not cover_path:
+        await message.answer("Не хватает файлов для заявки. Начнём заново.", reply_markup=back_keyboard())
+        await prompt_release_services(message, state)
         return
-
-    full_name = data.get("full_name")
-    email = data.get("email")
-    if not full_name or not email:
-        await message.answer("Не хватает данных для оформления. Заполни ФИО и email.", reply_markup=back_keyboard())
-        await state.set_state(ReleaseStates.full_name)
-        return
-
     user = await crud.get_or_create_user(
         session,
         telegram_id=message.from_user.id,
@@ -262,36 +297,32 @@ async def finalize_release(
         first_name=message.from_user.first_name,
         last_name=message.from_user.last_name,
     )
-
+    service = _service_from_state(data)
     release = await crud.create_release(
         session,
         user=user,
-        track_name=data.get("track_name", "Без названия"),
-        artist=data.get("artist"),
-        authors=data.get("authors"),
-        description=data.get("description"),
-        release_date=data.get("release_date"),
-        track_file=data.get("track_file"),
-        cover_file=data.get("cover_file"),
+        track_name=data.get("release_title", "Без названия"),
+        artist=data.get("artist_name"),
+        authors=data.get("genre"),
+        description=_build_description(data),
+        release_date=service.title,
+        track_file=track_path,
+        cover_file=cover_path,
     )
-
-    accepted_at_raw = data.get("consent_accepted_at")
-    accepted_at = datetime.fromisoformat(accepted_at_raw) if accepted_at_raw else datetime.now(timezone.utc)
-
-    await crud.create_consent(
-        session,
-        user=user,
-        release=release,
-        full_name=full_name,
-        email=email,
-        text_version=settings.consent_version,
-        text_body=data.get("consent_text", ""),
-        method="telegram_button",
-        accepted_at=accepted_at,
-    )
-
     await state.clear()
-    await message.answer(
-        "Спасибо! Мы получили данные релиза и свяжемся с тобой после проверки.",
-        reply_markup=main_menu(),
-    )
+    summary_lines = [
+        "Заявка отправлена!",
+        f"Услуга: {service.title} — {service.price}",
+        f"Артист: {release.artist or '—'}",
+        f"Релиз: {release.track_name}",
+        f"Контактный e-mail: {data.get('contact_email', '')}",
+        "Черновик договора отправим на почту после проверки материалов.",
+    ]
+    await message.answer("\n".join(summary_lines), reply_markup=main_menu())
+
+
+__all__ = [
+    "prompt_release_services",
+    "release_services_text",
+    "release_services_markup",
+]

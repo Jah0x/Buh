@@ -1,18 +1,23 @@
 from aiogram.fsm.state import State, StatesGroup
-
-
 class ReleaseStates(StatesGroup):
+    service = State()
     track_upload = State()
     cover_upload = State()
-    full_name = State()
-    email = State()
-    consent = State()
-    track_name = State()
-    artist = State()
-    authors = State()
-    description = State()
-    release_date = State()
+    artist_name = State()
+    release_title = State()
+    genre = State()
+    socials = State()
+    contact_email = State()
 
 
-class ConsentStates(StatesGroup):
-    confirmation = State()
+class MenuStates(StatesGroup):
+    pc = State()
+    courses = State()
+    studios = State()
+    links = State()
+
+
+class PCBuildStates(StatesGroup):
+    budget = State()
+    goals = State()
+    wishes = State()
