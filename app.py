@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
+from aiogram.exceptions import TelegramNetworkError
+
 from app.bot import create_bot, create_dispatcher
 from app.config import load_settings
 from app.database.session import Database
@@ -21,6 +23,8 @@ async def _main() -> None:
     logger.info("Starting bot polling")
     try:
         await dispatcher.start_polling(bot)
+    except TelegramNetworkError as error:
+        logger.error("Telegram network error: %s", error)
     finally:
         await bot.session.close()
 
